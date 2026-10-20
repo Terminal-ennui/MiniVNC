@@ -1,0 +1,57 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and publish release
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Show toolchain
+        run: |
+          xcodebuild -version
+          swift --version
+
+      # The Keychain tests need an unlocked default keychain; use a throwaway one.
+      - name: Set up test keychain
+        run: |
+          keychain="$RUNNER_TEMP/ci.keychain-db"
+          security create-keychain -p ci "$keychain"
+          security set-keychain-settings "$keychain"
+          security unlock-keychain -p ci "$keychain"
+          security list-keychains -d user -s "$keychain"
+          security default-keychain -s "$keychain"
+
+      - name: Test
+        run: swift test
+
+      - name: Build app bundle
+        # v1.2.3 → version 1.2.3; the run number is the build number.
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}" BUILD_NUMBER="$GITHUB_RUN_NUMBER" SIGN_IDENTITY=- scripts/build-app.sh
+          plutil -p build/MiniVNC.app/Contents/Info.plist | grep -E 'CFBundle(ShortVersionString|Version)"'
+
+      - name: Package
+        run: |
+          zip="MiniVNC-${GITHUB_REF_NAME}.zip"
+          ditto -c -k --keepParent build/MiniVNC.app "$zip"
+          shasum -a 256 "$zip" > "$zip.sha256"
+          cat "$zip.sha256"
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            "MiniVNC-${GITHUB_REF_NAME}.zip" "MiniVNC-${GITHUB_REF_NAME}.zip.sha256" \
+            --title "MiniVNC ${GITHUB_REF_NAME}" \
+            --generate-notes \
+            --verify-tag
