@@ -12,7 +12,7 @@
 <p align="center">
   <a href="https://github.com/Terminal-ennui/MiniVNC/actions/workflows/ci.yml"><img src="https://github.com/Terminal-ennui/MiniVNC/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://github.com/Terminal-ennui/MiniVNC/releases/latest"><img src="https://img.shields.io/github/v/release/Terminal-ennui/MiniVNC" alt="Latest release"></a>
-  <img src="https://img.shields.io/badge/macOS-15%2B-blue" alt="macOS 15+">
+  <img src="https://img.shields.io/badge/macOS%2015%2B-Apple%20silicon-blue" alt="macOS 15+ on Apple silicon">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green" alt="MIT license"></a>
 </p>
 
@@ -33,6 +33,9 @@
   Apple's frameworks and the system zlib. The whole app is about 2 MB.
 
 ## Install
+
+Requires a Mac with **Apple silicon** (M1 or later) running **macOS 15 or later**. Release builds
+don't run on Intel Macs.
 
 1. Download `MiniVNC-<version>.zip` from the [latest release](https://github.com/Terminal-ennui/MiniVNC/releases/latest)
    and unzip it.
@@ -102,7 +105,8 @@ Hextile encodings, and file transfer.
 
 ## Build from source
 
-Requirements: macOS 15 or later and Xcode 26 or later (Swift 6.2+).
+Requirements: macOS 15 or later and Xcode 26 or later (Swift 6.2+). Only Apple silicon is supported
+and tested; building on an Intel Mac may work but isn't guaranteed.
 
 ```bash
 git clone https://github.com/Terminal-ennui/MiniVNC.git
