@@ -4,6 +4,11 @@ import Testing
 @testable import VNCCore
 
 struct FramebufferTests {
+    /// Rows of expected pixels. Typed out so `#expect` stays cheap to type-check (Swift 6.3 gives up on it inline).
+    private static func expected(width: Int, height: Int, _ pixel: (Int, Int) -> UInt32) -> [[UInt32]] {
+        (0..<height).map { y in (0..<width).map { x in pixel(x, y) } }
+    }
+
     private static func snapshot(_ fb: Framebuffer) -> [[UInt32]] {
         (0..<fb.height).map { y in (0..<fb.width).map { x in fb.pixel(x: x, y: y) } }
     }
@@ -212,12 +217,14 @@ struct FramebufferTests {
         let before = Self.snapshot(fb)
         fb.resize(width: 6, height: 2)
         #expect(fb.width == 6 && fb.height == 2)
-        #expect(Self.snapshot(fb) == (0..<2).map { y in (0..<6).map { x in x < 4 ? before[y][x] : 0 } })
+        let wider = Self.expected(width: 6, height: 2) { x, y in x < 4 ? before[y][x] : 0 }
+        #expect(Self.snapshot(fb) == wider)
         fb.resize(width: 3, height: 5)
         #expect(fb.width == 3 && fb.height == 5)
-        #expect(Self.snapshot(fb) == (0..<5).map { y in (0..<3).map { x in y < 2 ? before[y][x] : 0 } })
+        let taller = Self.expected(width: 3, height: 5) { x, y in y < 2 ? before[y][x] : 0 }
+        #expect(Self.snapshot(fb) == taller)
         fb.resize(width: 3, height: 5)
-        #expect(Self.snapshot(fb) == (0..<5).map { y in (0..<3).map { x in y < 2 ? before[y][x] : 0 } })
+        #expect(Self.snapshot(fb) == taller)
         fb.resize(width: -1, height: 0)
         #expect(fb.width == 1 && fb.height == 1 && fb.pixel(x: 0, y: 0) == before[0][0])
     }

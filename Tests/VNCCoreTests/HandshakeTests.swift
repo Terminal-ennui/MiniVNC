@@ -9,7 +9,7 @@ struct HandshakeTests {
         )
         let result = try await Handshake.run(on: t, password: { Issue.record("no password expected"); return nil })
         #expect(result == ServerInit(width: 1024, height: 768, pixelFormat: .bgrx32, name: "box:1"))
-        #expect(t.sent == [version("003.008"), Data([1]), Data([1])])
+        #expect(t.sent == [version("003.008"), Data([1]), Data([1])] as [Data])
         #expect(t.unreadCount == 0)
     }
 
@@ -23,7 +23,7 @@ struct HandshakeTests {
         #expect(t.sent == [
             version("003.008"), Data([2]),
             VNCAuth.response(challenge: challenge, password: "secret"), Data([1]),
-        ])
+        ] as [Data])
     }
 
     @Test func vncAuthFailureReportsReason() async throws {
@@ -53,7 +53,7 @@ struct HandshakeTests {
         let t = ScriptedTransport(version("003.003") + u32(2) + challenge + u32(0) + serverInit(width: 640, height: 480, name: "old"))
         let result = try await Handshake.run(on: t, password: { "pw" })
         #expect(result.name == "old")
-        #expect(t.sent == [version("003.003"), VNCAuth.response(challenge: challenge, password: "pw"), Data([1])])
+        #expect(t.sent == [version("003.003"), VNCAuth.response(challenge: challenge, password: "pw"), Data([1])] as [Data])
     }
 
     @Test func failureWithoutReasonOn33() async throws {
@@ -119,7 +119,7 @@ struct HandshakeTests {
         let challenge = Data(repeating: 3, count: 16)
         let t = ScriptedTransport(version("003.007") + Data([1, 2]) + challenge + u32(0) + serverInit(width: 1, height: 1, name: ""))
         _ = try await Handshake.run(on: t, password: { "pw" })
-        #expect(t.sent == [version("003.007"), Data([2]), VNCAuth.response(challenge: challenge, password: "pw"), Data([1])])
+        #expect(t.sent == [version("003.007"), Data([2]), VNCAuth.response(challenge: challenge, password: "pw"), Data([1])] as [Data])
     }
 
     @Test func failureOn37HasNoReason() async throws {
