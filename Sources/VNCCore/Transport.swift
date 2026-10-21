@@ -17,13 +17,18 @@ public protocol Transport: AnyObject, Sendable {
 
 public final class NWTransport: Transport, @unchecked Sendable {
     private let connection: NWConnection
+    private let endpoint: String
+    private let onLocalNetworkWait: (@Sendable () -> Void)?
     private let queue = DispatchQueue(label: "MiniVNC.NWTransport")
     private let isClosed = Atomic<Bool>(false)
     // Only touched by the single reader inside read(exactly:). Bytes before `head` are already consumed.
     private var buffer = Data()
     private var head = 0
 
-    public init(host: String, port: UInt16) {
+    /// `onLocalNetworkWait` is called once if macOS holds the connection for Local Network permission.
+    public init(host: String, port: UInt16, onLocalNetworkWait: (@Sendable () -> Void)? = nil) {
+        endpoint = "\(host):\(port)"
+        self.onLocalNetworkWait = onLocalNetworkWait
         let tcp = NWProtocolTCP.Options()
         tcp.noDelay = true
         tcp.connectionTimeout = 10
@@ -44,16 +49,21 @@ public final class NWTransport: Transport, @unchecked Sendable {
         guard !isClosed.load(ordering: .acquiring) else { throw TransportError.closed }
         try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
             let attempt = OpenAttempt(cont)
-            connection.stateUpdateHandler = { [connection, queue] state in
+            Log.transport.notice("\(self.endpoint, privacy: .public): connecting")
+            connection.stateUpdateHandler = { [connection, queue, endpoint, onLocalNetworkWait] state in
                 switch state {
                 case .ready:
+                    Log.transport.notice("\(endpoint, privacy: .public): TCP ready")
                     attempt.finish(nil)
                 case .waiting where connection.currentPath?.unsatisfiedReason == .localNetworkDenied:
-                    attempt.startDeadline(on: queue, after: .seconds(30)) {
+                    Log.transport.error("\(endpoint, privacy: .public): waiting — Local Network access denied or not yet granted")
+                    if attempt.startDeadline(on: queue, after: .seconds(30), expire: {
+                        Log.transport.error("\(endpoint, privacy: .public): gave up waiting for Local Network access")
                         connection.cancel()
                         attempt.finish(TransportError.localNetworkDenied)
-                    }
+                    }) { onLocalNetworkWait?() }
                 case .waiting(let error), .failed(let error):
+                    Log.transport.error("\(endpoint, privacy: .public): \(String(describing: state), privacy: .public) \(error.localizedDescription, privacy: .public)")
                     connection.cancel()
                     attempt.finish(error)
                 case .cancelled:
@@ -122,11 +132,14 @@ private final class OpenAttempt: @unchecked Sendable {
         if let error { continuation.resume(throwing: error) } else { continuation.resume() }
     }
 
-    func startDeadline(on queue: DispatchQueue, after delay: DispatchTimeInterval, expire: @escaping @Sendable () -> Void) {
-        guard !hasDeadline else { return }
+    /// Returns true the first time, when the deadline is actually scheduled.
+    @discardableResult
+    func startDeadline(on queue: DispatchQueue, after delay: DispatchTimeInterval, expire: @escaping @Sendable () -> Void) -> Bool {
+        guard !hasDeadline else { return false }
         hasDeadline = true
         queue.asyncAfter(deadline: .now() + delay) { [weak self] in
             if self?.continuation != nil { expire() }
         }
+        return true
     }
 }

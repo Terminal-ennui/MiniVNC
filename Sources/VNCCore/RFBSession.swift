@@ -69,9 +69,11 @@ public actor RFBSession {
             transport.send(ClientMessage.setEncodings(Self.encodings))
             requestUpdate(incremental: false)
             isReady.store(true, ordering: .releasing)
+            Log.session.notice("connected to “\(info.name, privacy: .public)”, \(info.width)×\(info.height)")
             eventSink.yield(.connected(info))
             while true { try await readMessage() }
         } catch {
+            Log.session.notice("session ended: \(String(describing: error), privacy: .public)")
             isReady.store(false, ordering: .releasing)
             transport.close()
             eventSink.yield(.disconnected(error))

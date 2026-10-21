@@ -9,7 +9,7 @@ final class InMemoryPasswordStore: PasswordStore {
         passwords[id]
     }
 
-    func setPassword(_ password: String, for id: UUID) {
+    func setPassword(_ password: String, for id: UUID, label: String) {
         passwords[id] = password
     }
 

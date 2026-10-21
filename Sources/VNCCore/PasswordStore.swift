@@ -4,7 +4,8 @@ import Security
 /// Per-connection VNC passwords, keyed by `SavedConnection.id`.
 public protocol PasswordStore: AnyObject {
     func password(for id: UUID) -> String?
-    func setPassword(_ password: String, for id: UUID) throws
+    /// `label` is what Keychain Access shows, e.g. `SavedConnection.keychainLabel`.
+    func setPassword(_ password: String, for id: UUID, label: String) throws
     func deletePassword(for id: UUID)
 }
 
@@ -18,10 +19,9 @@ extension KeychainError: LocalizedError {
     }
 }
 
-/// Generic-password items: kSecAttrService = service, kSecAttrAccount = id.uuidString, labeled "MiniVNC"
+/// Generic-password items: kSecAttrService = service, kSecAttrAccount = id.uuidString, labeled per connection
 /// so they are recognizable in Keychain Access.
 public final class KeychainPasswordStore: PasswordStore, Sendable {
-    private static let label = "MiniVNC"
     private let service: String
 
     public init(service: String = "MiniVNC") {
@@ -39,9 +39,9 @@ public final class KeychainPasswordStore: PasswordStore, Sendable {
         return String(data: data, encoding: .utf8)
     }
 
-    public func setPassword(_ password: String, for id: UUID) throws {
+    public func setPassword(_ password: String, for id: UUID, label: String) throws {
         let query = itemQuery(id)
-        let attributes: [CFString: Any] = [kSecValueData: Data(password.utf8), kSecAttrLabel: Self.label]
+        let attributes: [CFString: Any] = [kSecValueData: Data(password.utf8), kSecAttrLabel: label]
         var status = SecItemUpdate(query as CFDictionary, attributes as CFDictionary)
         if status == errSecItemNotFound {
             status = SecItemAdd(query.merging(attributes) { $1 } as CFDictionary, nil)

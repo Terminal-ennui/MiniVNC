@@ -120,6 +120,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func open(_ id: UUID) {
         if let viewer = viewers[id] {
             viewer.showWindow(nil)
+            viewer.reconnectIfIdle()
             return
         }
         guard let connection = store.connection(id: id) else { return }

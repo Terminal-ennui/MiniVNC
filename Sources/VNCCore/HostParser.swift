@@ -52,11 +52,8 @@ public enum HostParser {
     /// Inverse of `parse`: ports below `displayLimit` use `::` so they don't re-parse as display numbers.
     public static func format(_ address: HostAddress) -> String {
         let host = address.host.contains(":") ? "[\(address.host)]" : address.host
-        switch address.port {
-        case defaultPort: return host
-        case displayLimit...: return "\(host):\(address.port)"
-        default: return "\(host)::\(address.port)"
-        }
+        // Always show the port, so what was typed (e.g. host:5900) is what the user sees again.
+        return address.port >= displayLimit ? "\(host):\(address.port)" : "\(host)::\(address.port)"
     }
 
     private static func isNameColonColonDigits(_ s: Substring) -> Bool {

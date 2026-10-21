@@ -74,6 +74,7 @@ public enum Handshake {
         else { throw HandshakeError.unsupportedVersion(text.trimmingCharacters(in: .whitespacesAndNewlines)) }
 
         let minor = serverMinor >= 8 ? 8 : (serverMinor == 7 ? 7 : 3)
+        Log.session.notice("server speaks RFB 3.\(serverMinor), using 3.\(minor)")
         transport.send(Data("RFB 003.00\(minor)\n".utf8))
         return minor
     }
@@ -92,14 +93,20 @@ public enum Handshake {
         if count == 0 { throw HandshakeError.serverRefused(try await readString(transport)) }
         let offered = [UInt8](try await transport.read(exactly: Int(count)))
         guard let chosen = [securityNone, securityVNC].first(where: offered.contains) else {
+            Log.session.error("no supported security type among \(offered, privacy: .public)")
             throw HandshakeError.noSupportedSecurity(offered)
         }
+        Log.session.notice("security types \(offered, privacy: .public), using \(chosen == securityVNC ? "VNC password" : "none", privacy: .public)")
         transport.send(Data([chosen]))
         return chosen
     }
 
     private static func readSecurityResult(_ transport: Transport, minor: Int) async throws {
-        guard try await readU32(transport) != 0 else { return }
+        guard try await readU32(transport) != 0 else {
+            Log.session.notice("authentication accepted")
+            return
+        }
+        Log.session.error("authentication rejected")
         let reason = minor >= 8 ? try? await readString(transport) : nil
         throw HandshakeError.authenticationFailed(reason ?? "Authentication failed")
     }

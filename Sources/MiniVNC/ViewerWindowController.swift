@@ -61,7 +61,10 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate {
     }
 
     func connect() {
-        let session = RFBSession(transport: NWTransport(host: connection.host, port: connection.port))
+        let transport = NWTransport(host: connection.host, port: connection.port, onLocalNetworkWait: { [weak self] in
+            Task { @MainActor in self?.window?.subtitle = "Waiting for Local Network permission…" }
+        })
+        let session = RFBSession(transport: transport)
         self.session = session
         framebufferView.session = session
         isConnected = false
@@ -86,7 +89,7 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate {
         case .connected(let info):
             isConnected = true
             window?.subtitle = info.name
-            if let enteredPassword { try? passwords.setPassword(enteredPassword, for: connection.id) }
+            if let enteredPassword { try? passwords.setPassword(enteredPassword, for: connection.id, label: connection.keychainLabel) }
             enteredPassword = nil
             authError = nil
             skipSavedPassword = false
@@ -153,18 +156,32 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate {
             : "Couldn't connect to \(connection.displayName)"
         alert.informativeText = Self.describe(error, host: connection.host)
         alert.addButton(withTitle: wasConnected ? "Reconnect" : "Try Again")
+        let needsLocalNetwork = (error as? TransportError) == .localNetworkDenied
+        if needsLocalNetwork { alert.addButton(withTitle: "Open Privacy Settings") }
         alert.addButton(withTitle: "Close")
         alert.beginSheetModal(for: window) { [weak self] response in
             // Ended by windowWillClose: the window is already going away.
             guard let self, !isClosing else { return }
-            if response == .alertFirstButtonReturn {
+            switch response {
+            case .alertFirstButtonReturn:
                 skipSavedPassword = false
                 authError = nil
                 connect()
-            } else {
+            case .alertSecondButtonReturn where needsLocalNetwork:
+                NSWorkspace.shared.open(Self.localNetworkSettings)
+                showDisconnected(error, wasConnected: wasConnected) // keep Try Again at hand
+            default:
                 close()
             }
         }
+    }
+
+    private static let localNetworkSettings =
+        URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_LocalNetwork")!
+
+    /// Picking the connection again from a menu retries it if the window sits disconnected.
+    func reconnectIfIdle() {
+        if session == nil, window?.attachedSheet == nil { connect() }
     }
 
     private static func describe(_ error: Error?, host: String) -> String {
@@ -173,7 +190,8 @@ final class ViewerWindowController: NSWindowController, NSWindowDelegate {
             switch error {
             case .closed: return "The server closed the connection."
             case .localNetworkDenied:
-                return "MiniVNC isn't allowed to reach your local network. Allow it in System Settings › Privacy & Security › Local Network."
+                return "macOS hasn't let MiniVNC reach your local network. Turn MiniVNC on under Privacy & Security › Local Network. "
+                    + "If it isn't listed, quit and reopen MiniVNC and connect again, then choose Allow when macOS asks."
             }
         case let error as HandshakeError:
             switch error {

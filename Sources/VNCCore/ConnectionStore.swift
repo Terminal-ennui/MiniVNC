@@ -19,6 +19,12 @@ public struct SavedConnection: Codable, Equatable, Identifiable, Sendable {
             ? HostParser.format(HostAddress(host: host, port: port))
             : name
     }
+
+    /// Keychain Access label for this connection's password, e.g. "MiniVNC: Office (office.local:5900)".
+    public var keychainLabel: String {
+        let address = HostParser.format(HostAddress(host: host, port: port))
+        return displayName == address ? "MiniVNC: \(address)" : "MiniVNC: \(displayName) (\(address))"
+    }
 }
 
 /// Saved connections persisted as JSON in user defaults, in insertion order. Unreadable data loads as empty.

@@ -119,6 +119,11 @@ struct ConnectionStoreTests {
         #expect(office.displayName == "Office")
         #expect(nas.displayName == "nas::22")
         #expect(SavedConnection(name: "  \n", host: "::1", port: 5901).displayName == "[::1]:5901")
-        #expect(SavedConnection(name: "", host: "mac.local", port: 5900).displayName == "mac.local")
+        #expect(SavedConnection(name: "", host: "mac.local", port: 5900).displayName == "mac.local:5900")
+    }
+
+    @Test func keychainLabelNamesTheConnectionAndAddress() {
+        #expect(office.keychainLabel == "MiniVNC: Office (office.local:5900)")
+        #expect(nas.keychainLabel == "MiniVNC: nas::22")
     }
 }

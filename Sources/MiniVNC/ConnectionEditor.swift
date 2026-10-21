@@ -38,7 +38,7 @@ enum ConnectionEditor {
             if password.stringValue.isEmpty {
                 passwords.deletePassword(for: connection.id)
             } else {
-                try? passwords.setPassword(password.stringValue, for: connection.id)
+                try? passwords.setPassword(password.stringValue, for: connection.id, label: connection.keychainLabel)
             }
             return connection
         }

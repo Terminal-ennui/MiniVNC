@@ -8,19 +8,19 @@ private func exerciseContract(_ store: PasswordStore) throws {
     let a = UUID(), b = UUID(), c = UUID()
     #expect(store.password(for: a) == nil)
 
-    try store.setPassword("secret", for: a)
+    try store.setPassword("secret", for: a, label: "MiniVNC: test")
     #expect(store.password(for: a) == "secret")
 
-    try store.setPassword("changed", for: a)
+    try store.setPassword("changed", for: a, label: "MiniVNC: test")
     #expect(store.password(for: a) == "changed")
 
-    try store.setPassword("other", for: b)
+    try store.setPassword("other", for: b, label: "MiniVNC: test")
     #expect(store.password(for: a) == "changed")
     #expect(store.password(for: b) == "other")
     #expect(store.password(for: c) == nil)
 
     let unicode = "pässwörd 🔑 日本語"
-    try store.setPassword(unicode, for: c)
+    try store.setPassword(unicode, for: c, label: "MiniVNC: test")
     #expect(store.password(for: c) == unicode)
 
     store.deletePassword(for: a)
@@ -28,7 +28,7 @@ private func exerciseContract(_ store: PasswordStore) throws {
     #expect(store.password(for: b) == "other")
     store.deletePassword(for: a)
 
-    try store.setPassword("again", for: a)
+    try store.setPassword("again", for: a, label: "MiniVNC: test")
     #expect(store.password(for: a) == "again")
 }
 
@@ -77,12 +77,13 @@ struct PasswordStoreTests {
         try withTestKeychainService { service in
             let store = KeychainPasswordStore(service: service)
             let id = UUID()
-            try store.setPassword("one", for: id)
-            try store.setPassword("two", for: id)
+            try store.setPassword("one", for: id, label: "MiniVNC: Office (office.local:5900)")
+            try store.setPassword("two", for: id, label: "MiniVNC: Renamed (office.local:5900)")
             let items = keychainItems(service: service)
             #expect(items.count == 1)
             #expect(items.first?[kSecAttrAccount as String] as? String == id.uuidString)
-            #expect(items.first?[kSecAttrLabel as String] as? String == "MiniVNC")
+            // The label follows the connection's current name, so Keychain Access shows something recognizable.
+            #expect(items.first?[kSecAttrLabel as String] as? String == "MiniVNC: Renamed (office.local:5900)")
         }
     }
 
@@ -90,7 +91,7 @@ struct PasswordStoreTests {
         try withTestKeychainService { first in
             try withTestKeychainService { second in
                 let id = UUID()
-                try KeychainPasswordStore(service: first).setPassword("first", for: id)
+                try KeychainPasswordStore(service: first).setPassword("first", for: id, label: "MiniVNC: first")
                 #expect(KeychainPasswordStore(service: second).password(for: id) == nil)
                 KeychainPasswordStore(service: second).deletePassword(for: id)
                 #expect(KeychainPasswordStore(service: first).password(for: id) == "first")

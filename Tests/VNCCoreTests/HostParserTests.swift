@@ -55,12 +55,12 @@ struct HostParserTests {
     }
 
     @Test func formatsAddresses() {
-        #expect(HostParser.format(HostAddress(host: "host", port: 5900)) == "host")
+        #expect(HostParser.format(HostAddress(host: "host", port: 5900)) == "host:5900")
         #expect(HostParser.format(HostAddress(host: "host", port: 5901)) == "host:5901")
         #expect(HostParser.format(HostAddress(host: "host", port: 100)) == "host:100")
         #expect(HostParser.format(HostAddress(host: "host", port: 99)) == "host::99")
         #expect(HostParser.format(HostAddress(host: "host", port: 1)) == "host::1")
-        #expect(HostParser.format(HostAddress(host: "::1", port: 5900)) == "[::1]")
+        #expect(HostParser.format(HostAddress(host: "::1", port: 5900)) == "[::1]:5900")
         #expect(HostParser.format(HostAddress(host: "::1", port: 5901)) == "[::1]:5901")
         #expect(HostParser.format(HostAddress(host: "::1", port: 22)) == "[::1]::22")
     }
